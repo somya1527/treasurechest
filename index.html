@@ -93,6 +93,153 @@
     display:none;
   }
   .chest-popup .num{font-size:22px;}
+
+  /* Treasure-map styled letter popup */
+  .letter-overlay{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,0.78);
+    z-index:9999;
+  }
+  .letter-box{
+    position:relative;
+    width:clamp(480px, 70vw, 900px);
+    min-height: min(520px, 80vh);
+    max-height: 90vh;
+    padding:28px 30px 22px 30px;
+    box-sizing:border-box;
+    border-radius:18px;
+    box-shadow:0 18px 60px rgba(0,0,0,0.85);
+    overflow:hidden;
+    color:#2b2014;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(0,0,0,0.16) 0, transparent 45%),
+      radial-gradient(circle at 90% 100%, rgba(0,0,0,0.26) 0, transparent 45%),
+      linear-gradient(135deg,#f5e2b8 0,#f0d6a0 40%,#e7c88c 70%,#f4ddb1 100%);
+    border:3px solid rgba(92,61,23,0.85);
+    transform:scale(0.94);
+    animation: letterPopIn 200ms ease-out forwards;
+  }
+  .letter-box::before{
+    content:"";
+    position:absolute;
+    inset:12px;
+    border-radius:14px;
+    border:1px dashed rgba(112,76,32,0.5);
+    pointer-events:none;
+  }
+  .letter-box::after{
+    content:"X";
+    position:absolute;
+    right:32px;
+    bottom:26px;
+    font-family:"Georgia",serif;
+    font-weight:900;
+    color:rgba(125,43,32,0.8);
+    font-size:26px;
+    transform:rotate(-10deg);
+    opacity:0.8;
+  }
+  .letter-title{
+    font-family:"Georgia","Times New Roman",serif;
+    font-size:24px;
+    font-weight:900;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:#4a2c14;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .letter-title span.chest-chip{
+    font-size:12px;
+    padding:4px 8px;
+    border-radius:999px;
+    background:rgba(92,61,23,0.12);
+    border:1px solid rgba(92,61,23,0.25);
+    text-transform:none;
+    letter-spacing:0;
+  }
+  .letter-sub{
+    font-size:13px;
+    color:#705135;
+    margin-bottom:14px;
+    font-style:italic;
+  }
+  .letter-scroll{
+    position:relative;
+    margin-top:6px;
+    padding:14px 16px 12px 16px;
+    border-radius:12px;
+    background:radial-gradient(circle at 0 0,rgba(255,255,255,0.65) 0,transparent 50%) #f6e7c0;
+    box-shadow:inset 0 0 0 1px rgba(160,122,64,0.18);
+    max-height:52vh;
+    overflow:auto;
+  }
+  .letter-scroll::before,
+  .letter-scroll::after{
+    content:"";
+    position:absolute;
+    left:10px;
+    right:10px;
+    height:2px;
+    border-top:1px dashed rgba(132,97,53,0.5);
+  }
+  .letter-scroll::before{ top:12px; }
+  .letter-scroll::after{ bottom:10px; }
+  .letter-textarea{
+    width:100%;
+    border:none;
+    background:transparent;
+    resize:vertical;
+    outline:none;
+    padding:10px 4px 4px 4px;
+    box-sizing:border-box;
+    font-family:"Georgia","Times New Roman",serif;
+    font-size:15px;
+    line-height:1.5;
+    color:#3b2713;
+    min-height:220px;
+    max-height:50vh;
+  }
+  .letter-textarea::placeholder{
+    color:rgba(112,81,53,0.6);
+  }
+  .letter-actions{
+    margin-top:14px;
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+  }
+  .letter-actions button{
+    font-weight:800;
+    font-size:13px;
+    padding:8px 16px;
+    border-radius:999px;
+    border:1px solid rgba(92,61,23,0.55);
+    background:linear-gradient(135deg,rgba(255,247,220,0.98),rgba(240,215,172,0.98));
+    color:#3b2713;
+    box-shadow:0 3px 8px rgba(0,0,0,0.28);
+  }
+  .letter-actions button:nth-child(2){
+    background:rgba(0,0,0,0.04);
+    border-color:rgba(92,61,23,0.4);
+    box-shadow:none;
+  }
+  .letter-admin-note{
+    margin-top:4px;
+    font-size:11px;
+    color:#876242;
+    text-align:right;
+  }
+  @keyframes letterPopIn{
+    from{ transform:scale(0.92); opacity:0; }
+    to{ transform:scale(1); opacity:1; }
+  }
 </style>
 
 <script type="importmap">
@@ -503,52 +650,105 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
 
   function showDialog(text, opts={tts:false, speed:32}){ dialogBox.style.display='block'; dialogBox.textContent=''; let i=0; const iv=setInterval(()=>{ dialogBox.textContent += text[i++]||''; if(i>text.length){ clearInterval(iv); setTimeout(()=> dialogBox.style.display='none',900); } }, 1000/opts.speed); }
 
-  // showLetter updated: admin can edit letter inside modal regardless of page-level admin (but save will check admin)
+  // TREASURE-MAP STYLE LETTER POPUP
   function showLetter(id, text){
     const overlay = document.createElement('div');
-    Object.assign(overlay.style, { position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.45)', zIndex:9999 });
+    overlay.className = 'letter-overlay';
 
     const box = document.createElement('div');
-    box.style.cssText = 'background:#082a30;color:#fff;padding:18px;border-radius:12px;min-width:320px;max-width:86vw;max-height:86vh;overflow:auto;text-align:left';
+    box.className = 'letter-box';
 
     const title = document.createElement('div');
-    title.textContent = `Chest ${id} opened`;
-    title.style.fontWeight = '900';
-    title.style.marginBottom = '8px';
+    title.className = 'letter-title';
+    const mainTitle = document.createElement('span');
+    mainTitle.textContent = 'SECRET CHEST LETTER';
+    const chip = document.createElement('span');
+    chip.className = 'chest-chip';
+    chip.textContent = `Chest ${id}`;
+    title.appendChild(mainTitle);
+    title.appendChild(chip);
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'letter-sub';
+    subtitle.textContent = 'Unrolled from a slightly burnt treasure map, inked just for you.';
+
+    const scroll = document.createElement('div');
+    scroll.className = 'letter-scroll';
 
     const quickEdit = document.createElement('textarea');
-    quickEdit.rows = Math.min(20, Math.max(6, Math.ceil((text||'').length/120)));
-    quickEdit.style.width = '100%';
-    quickEdit.style.marginTop = '8px';
+    quickEdit.className = 'letter-textarea';
+    quickEdit.rows = Math.min(16, Math.max(8, Math.ceil((text||'').length/140)));
+    quickEdit.placeholder = 'Your letter for this chest will appear here...';
     quickEdit.value = text || '';
 
-    const btnSave = document.createElement('button'); btnSave.textContent = 'Save & Close';
-    const btnClose = document.createElement('button'); btnClose.textContent = 'Close';
+    scroll.appendChild(quickEdit);
 
-    function cleanup(){ try{ quickEdit.removeEventListener('keydown', onQuickKey); } catch(_) {} try{ btnSave.removeEventListener('click', onSave); } catch(_) {} try{ btnClose.removeEventListener('click', onClose); } catch(_) {} }
+    const actions = document.createElement('div');
+    actions.className = 'letter-actions';
+    const btnSave = document.createElement('button'); btnSave.textContent = isAdmin ? 'Save letter & close' : 'Close';
+    const btnClose = document.createElement('button'); btnClose.textContent = 'Back to the world';
 
-    function onSave(){ if(!isAdmin){ toast('Admin only — changes will not be saved'); cleanup(); overlay.remove(); return; } letters[id-1] = quickEdit.value; saveState(); cleanup(); overlay.remove(); refreshUI(); if(foundCount === 20){ triggerFireworks(5000); } }
-    function onClose(){ cleanup(); overlay.remove(); if(foundCount === 20){ triggerFireworks(5000); } }
+    actions.appendChild(btnSave);
+    actions.appendChild(btnClose);
 
-    function onQuickKey(e){ if(e.key === 'Enter'){ e.preventDefault(); onSave(); } }
+    const adminNote = document.createElement('div');
+    adminNote.className = 'letter-admin-note';
+    adminNote.textContent = isAdmin
+      ? 'Admin: edits here will overwrite the saved letter for this chest.'
+      : 'View-only: only the creator can edit the letter.';
+
+    function cleanup(){
+      try{ quickEdit.removeEventListener('keydown', onQuickKey); } catch(_) {}
+      try{ btnSave.removeEventListener('click', onSave); } catch(_) {}
+      try{ btnClose.removeEventListener('click', onClose); } catch(_) {}
+    }
+
+    function closeAndMaybeFireworks(){
+      cleanup();
+      overlay.remove();
+      if(foundCount === 20){
+        triggerFireworks(5000);
+      }
+    }
+
+    function onSave(){
+      if(!isAdmin){
+        // non-admin: treat main button as just close
+        closeAndMaybeFireworks();
+        return;
+      }
+      letters[id-1] = quickEdit.value;
+      saveState();
+      refreshUI();
+      closeAndMaybeFireworks();
+    }
+
+    function onClose(){
+      closeAndMaybeFireworks();
+    }
+
+    function onQuickKey(e){
+      if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+        e.preventDefault();
+        onSave();
+      }
+    }
 
     btnSave.addEventListener('click', onSave);
     btnClose.addEventListener('click', onClose);
     quickEdit.addEventListener('keydown', onQuickKey);
 
     box.appendChild(title);
-    box.appendChild(quickEdit);
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '8px';
-    row.style.marginTop = '10px';
-    row.appendChild(btnSave);
-    row.appendChild(btnClose);
-    box.appendChild(row);
+    box.appendChild(subtitle);
+    box.appendChild(scroll);
+    box.appendChild(actions);
+    box.appendChild(adminNote);
+
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
     quickEdit.focus();
+    quickEdit.setSelectionRange(quickEdit.value.length, quickEdit.value.length);
   }
 
   // GLTF loader + draco (unchanged)
