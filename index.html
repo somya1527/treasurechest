@@ -259,7 +259,6 @@
 HAAAAAAAAAAPPPPPPPPPPPPPPPPPPYYYYYYYYYYYYYYYY BBBBBBBBIIIIIIIIIIIIIRRRRRRRRRRRRRRRRRRRRRTTTTTTTTTTTTHHHHHHHHHDDDDDDDDDDDDDDAAAAAAAAAAAAYYYYYYYYYYYY DOOOOOOOBBBIIIIIIIIIII!!!!!!
 Now, there are 20 chests in this small game I made, you cannot open any chest at random, all of them are numbered, BUTT(yours) THEY ARE PASSWORD PROTECTED, if the question has options jaise A or B, just write the letter A or B as the answer, not the entire sentence ok? (To open any chest, press Tab) I LAVE YYOOUUU!! ( p.s. its not alot pr just know I made it with love.)
       </div>
-      <div class="birthday-sub">(Click below to close — message shown on load)</div>
       <button id="birthdayClose" class="birthday-close">Close</button>
     </div>
   </div>
@@ -268,7 +267,6 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     <div id="left">
       <div style="position:absolute;left:12px;top:12px;z-index:60">
         <span class="pill">WASD / Arrow — Move</span>
-        <span class="pill">Space — Jump</span>
         <span class="pill">Right-drag — Rotate camera</span>
       </div>
 
@@ -670,7 +668,6 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
 
     const subtitle = document.createElement('div');
     subtitle.className = 'letter-sub';
-    subtitle.textContent = 'Unrolled from a slightly burnt treasure map, inked just for you.';
 
     const scroll = document.createElement('div');
     scroll.className = 'letter-scroll';
@@ -695,7 +692,6 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     adminNote.className = 'letter-admin-note';
     adminNote.textContent = isAdmin
       ? 'Admin: edits here will overwrite the saved letter for this chest.'
-      : 'View-only: only the creator can edit the letter.';
 
     function cleanup(){
       try{ quickEdit.removeEventListener('keydown', onQuickKey); } catch(_) {}
@@ -938,3 +934,4 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   </script>
 </body>
 </html>
+
