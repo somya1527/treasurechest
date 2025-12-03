@@ -109,8 +109,8 @@
   <div id="birthdayPopup" class="birthday-overlay" aria-hidden="false" role="dialog">
     <div class="birthday-box" role="document">
       <div class="birthday-text" id="birthdayText">
-HAAAAAAAAAAPPPPPPPPPPPPPPPPPPYYYYYYYYYYYYYYYY BBBBBBIIIIIIIIRRRRRRRRRRTTTTTTTTTTTHHHHHHHHHDDDDDDDDDAAAAAAAAYYYYYYYY DOOOOOOOBBBIIIIIIIIIII!!!!!!
-Now, there are 20 chests in this small game I made FROM SCRATCH(blender use kra bhai),PRESS TAB TO OPEN ANY CHEST, you cannot open any chest at random, all of them are numbered, BUTT(yours) THEY ARE PASSWORD PROTECTED, if the question has options jaise A or B, just write the letter A or B as the answer, not the entire sentence ok? Aur abhi iss text ke beech koi number aara ho toh just move idhr udhr through WASD or arrow keys. I LAVE YYOOUUU!! ( p.s. its not alot pr just know I made it with love.)
+HAAAAAAAAAAPPPPPPPPPPPPPPPPPPYYYYYYYYYYYYYYYY BBBBBBBBIIIIIIIIIIIIIRRRRRRRRRRRRRRRRRRRRRTTTTTTTTTTTTHHHHHHHHHDDDDDDDDDDDDDDAAAAAAAAAAAAYYYYYYYYYYYY DOOOOOOOBBBIIIIIIIIIII!!!!!!
+Now, there are 20 chests in this small game I made, you cannot open any chest at random, all of them are numbered, BUTT(yours) THEY ARE PASSWORD PROTECTED, if the question has options jaise A or B, just write the letter A or B as the answer, not the entire sentence ok? (To open any chest, press Tab) I LAVE YYOOUUU!! ( p.s. its not alot pr just know I made it with love.)
       </div>
       <div class="birthday-sub">(Click below to close — message shown on load)</div>
       <button id="birthdayClose" class="birthday-close">Close</button>
@@ -121,6 +121,7 @@ Now, there are 20 chests in this small game I made FROM SCRATCH(blender use kra 
     <div id="left">
       <div style="position:absolute;left:12px;top:12px;z-index:60">
         <span class="pill">WASD / Arrow — Move</span>
+        <span class="pill">Space — Jump</span>
         <span class="pill">Right-drag — Rotate camera</span>
       </div>
 
@@ -212,6 +213,14 @@ Now, there are 20 chests in this small game I made FROM SCRATCH(blender use kra 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 5000);
   camera.position.set(0, 320, 700);
 
+  // smoothed camera follow helpers
+  const cameraTarget = new THREE.Vector3();
+  const desiredCamPos = new THREE.Vector3();
+  const tmpVec3 = new THREE.Vector3();
+  const camWorldOffset = new THREE.Vector3();
+  const CAMERA_POS_LERP = 0.18;
+  const CAMERA_TARGET_LERP = 0.25;
+
   // camera yaw controls
   let cameraYaw = Math.PI * 0.25;
   let cameraPitch = -0.35;
@@ -248,6 +257,8 @@ Now, there are 20 chests in this small game I made FROM SCRATCH(blender use kra 
 
   // player & placeholder (resized)
   const player = new THREE.Group(); player.position.set(0,40,0); player.scale.set(5,5,5); scene.add(player);
+  // initialise camera target roughly at player head height
+  cameraTarget.copy(player.position).add(new THREE.Vector3(0, 20, 0));
   let placeholder = null;
   (function makePlaceholder(){
     placeholder = new THREE.Group();
@@ -619,11 +630,16 @@ Now, there are 20 chests in this small game I made FROM SCRATCH(blender use kra 
 
       if(mixer){ mixer.update(dt); const idleName = player.userData._animIdle; const moveName = player.userData._animMove; if(idleName && moveName && actions[idleName] && actions[moveName]){ const idle = actions[idleName]; const move = actions[moveName]; const targetMoveWeight = isMoving ? 1 : 0; idle.setEffectiveWeight(THREE.MathUtils.lerp(idle.getEffectiveWeight(), 1 - targetMoveWeight, 0.12)); move.setEffectiveWeight(THREE.MathUtils.lerp(move.getEffectiveWeight(), targetMoveWeight, 0.12)); } }
 
-      const camOffset = new THREE.Vector3(0, 220, cameraDistanceDefault);
-      const camWorldOffset = camOffset.clone().applyQuaternion(camQuat);
-      const desiredCamPos = new THREE.Vector3().copy(player.position).add(camWorldOffset);
-      camera.position.lerp(desiredCamPos, 0.16);
-      camera.lookAt(player.position.x, player.position.y + 20, player.position.z);
+      // smoothed camera follow (position + target)
+      tmpVec3.set(0, 220, cameraDistanceDefault);
+      camWorldOffset.copy(tmpVec3).applyQuaternion(camQuat);
+      desiredCamPos.copy(player.position).add(camWorldOffset);
+      camera.position.lerp(desiredCamPos, CAMERA_POS_LERP);
+
+      // smooth lookAt target at player head height
+      tmpVec3.set(player.position.x, player.position.y + 20, player.position.z);
+      cameraTarget.lerp(tmpVec3, CAMERA_TARGET_LERP);
+      camera.lookAt(cameraTarget);
 
       ensureParticleMeshes(particles.length);
       for(let i=0;i<particlePool.length;i++){ const m = particlePool[i]; if(i < particles.length){ const p = particles[i]; m.visible = true; m.position.copy(p.pos); m.material.color.setHex(p.color); m.scale.setScalar(1 + (1 - Math.max(0, p.life)) * 1.2); } else m.visible = false; }
@@ -722,7 +738,3 @@ Now, there are 20 chests in this small game I made FROM SCRATCH(blender use kra 
   </script>
 </body>
 </html>
-
-
-
-
