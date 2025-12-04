@@ -694,26 +694,29 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   const MOVE_SPEED = 260;
   let walkTimer = 0;
   const keys = {};
+
+  // ---------- MODIFIED: only track arrow keys for movement ----------
   window.addEventListener('keydown', e=>{
-  const k = String(e.key).toLowerCase();
+    const key = String(e.key || '').toLowerCase();
 
-  // Tab: open chest (preserve behavior)
-  if(k === 'tab'){ e.preventDefault(); e.stopPropagation(); interact(); return; }
+    // Tab: open chest
+    if(key === 'tab'){ e.preventDefault(); e.stopPropagation(); interact(); return; }
 
+    // Space: jump
+    if(key === ' ' || key === 'spacebar' || e.code === 'Space'){ tryJump(); keys['space'] = true; return; }
 
-  // Shift+O: alternate interact shortcut
-  if(k === 'o' && e.shiftKey){ interact(); return; }
+    // Shift+O: alternate interact shortcut
+    if(key === 'o' && e.shiftKey){ interact(); return; }
 
-  // Only track Arrow keys for movement (ignore WASD)
-  if(k.startsWith('arrow')){ keys[k] = true; }
-});
+    // Only track Arrow keys for movement (ignore WASD)
+    if(key.startsWith('arrow')){ keys[key] = true; }
+  });
 
   window.addEventListener('keyup', e=>{
-  const k = String(e.key).toLowerCase();
-  if(k.startsWith('arrow')){ keys[k] = false; }
-  if(k === ' ' || k === 'spacebar' || e.code === 'Space'){ keys['space'] = false; }
-});
-
+    const key = String(e.key || '').toLowerCase();
+    if(key.startsWith('arrow')){ keys[key] = false; }
+    if(key === ' ' || key === 'spacebar' || e.code === 'Space'){ keys['space'] = false; }
+  });
 
   function tryJump(){ if(onGround){ velocity.y = 700; onGround = false; } }
 
@@ -780,6 +783,11 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     title.appendChild(mainTitle);
     title.appendChild(chip);
 
+    // subtitle (fixed - was missing in original and caused errors)
+    const subtitle = document.createElement('div');
+    subtitle.className = 'letter-sub';
+    subtitle.textContent = 'A small note from the maker.';
+
     const scroll = document.createElement('div');
     scroll.className = 'letter-scroll';
 
@@ -801,9 +809,7 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
 
     const adminNote = document.createElement('div');
     adminNote.className = 'letter-admin-note';
-    adminNote.textContent = isAdmin
-      ? 'Admin: edits here will overwrite the saved letter for this chest.'
-
+    adminNote.textContent = isAdmin ? 'Admin: edits here will overwrite the saved letter for this chest.' : '';
 
     function cleanup(){
       try{ quickEdit.removeEventListener('keydown', onQuickKey); } catch(_) {}
@@ -921,13 +927,13 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0,1,0)).normalize();
 
       let moveDir = new THREE.Vector3(0,0,0);
-if(!cinematicActive){
-  if(keys['arrowup']) moveDir.add(camForward);
-  if(keys['arrowdown']) moveDir.sub(camForward);
-  if(keys['arrowleft']) moveDir.sub(camRight);
-  if(keys['arrowright']) moveDir.add(camRight);
-}
-
+      // ---------- MODIFIED: movement checks only use arrow keys ----------
+      if(!cinematicActive){
+        if(keys['arrowup']) moveDir.add(camForward);
+        if(keys['arrowdown']) moveDir.sub(camForward);
+        if(keys['arrowleft']) moveDir.sub(camRight);
+        if(keys['arrowright']) moveDir.add(camRight);
+      }
       const isMoving = moveDir.lengthSq() > 0;
 
       if(isMoving){ moveDir.normalize(); player.position.addScaledVector(moveDir, MOVE_SPEED * dt); const targetYaw = Math.atan2(moveDir.x, moveDir.z); const currentYaw = player.rotation.y || 0; let diff = targetYaw - currentYaw; diff = (diff + Math.PI) % (Math.PI*2) - Math.PI; const ROT_SPEED = 12; player.rotation.y = currentYaw + diff * Math.min(1, ROT_SPEED * dt); }
