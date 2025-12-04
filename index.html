@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Treasure — White Ground + Resized Player (Per-chest Questions) — Fixed + Sakura &amp; Fireworks</title>
+<title>Treasure — White Ground + Resized Player (Per-chest Questions) — Fixed + Sakura &amp; Fireworks + Ending Cinematic</title>
 <style>
   html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:#061420;color:#eaf2ff}
   #app{display:flex;height:100vh}
@@ -240,6 +240,44 @@
     from{ transform:scale(0.92); opacity:0; }
     to{ transform:scale(1); opacity:1; }
   }
+
+  /* small floating HUD button for non-admin reset */
+  #resetProgressUser {
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:6px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:800;
+  }
+
+  /* ending cinematic styles */
+  #endingOverlay{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(rgba(0,0,0,0.0), rgba(0,0,0,0.62));
+    z-index:20000;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity 600ms ease;
+  }
+  #endingOverlay.show{ opacity:1; pointer-events:auto; }
+  .ending-message{
+    font-family: "Georgia", serif;
+    background:rgba(255,255,255,0.98);
+    color:#2b2014;
+    padding:26px 34px;
+    border-radius:14px;
+    border:3px solid rgba(92,61,23,0.85);
+    font-size:28px;
+    font-weight:900;
+    text-align:center;
+    max-width:88vw;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  }
 </style>
 
 <script type="importmap">
@@ -272,9 +310,12 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
         <span class="pill">Right-drag — Rotate camera</span>
       </div>
 
-      <div style="position:absolute; right:12px; top:12px; z-index:60">
+      <div style="position:absolute; right:12px; top:12px; z-index:60; display:flex; align-items:center; gap:8px">
         <span class="pill">Found: <span id="found">0</span>/20</span>
         <span class="pill" id="nextPill">Next: <span id="next">1</span></span>
+
+        <!-- new: user reset button (visible to everyone) -->
+        <button id="resetProgressUser" title="Reset your local progress">Reset progress</button>
       </div>
 
       <div id="tooltip"></div>
@@ -319,12 +360,17 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   <!-- chest number popup (DOM) -->
   <div id="chestPopup" class="chest-popup"><span class="num">1</span></div>
 
+  <!-- ending cinematic overlay (hidden until triggered) -->
+  <div id="endingOverlay" aria-hidden="true">
+    <div class="ending-message">Thank you for being in my life.</div>
+  </div>
+
   <script type="module">
   import * as THREE from 'three';
   import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
   import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
-  // simple logger (no on-screen log)
+  // simple logger
   function slog(msg){ console.log(msg); }
   window.addEventListener('error', e => { slog('Error: ' + (e.message || e)); });
   window.addEventListener('unhandledrejection', e => { slog('Rejection: ' + (e.reason || e)); });
@@ -348,6 +394,8 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   const chestPopup = document.getElementById('chestPopup');
   const adminBadge = document.getElementById('adminBadge');
   const readOnlyNote = document.getElementById('readOnlyNote');
+  const resetUserBtn = document.getElementById('resetProgressUser');
+  const endingOverlay = document.getElementById('endingOverlay');
 
   // renderer & scene
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
@@ -497,7 +545,11 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   let fireworksActive = false;
   let fireworkPool = [];
   function ensureFireworkMeshes(n){ while(fireworkPool.length < n){ const s = new THREE.Mesh(new THREE.SphereGeometry(1.8,6,6), new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0xffffff })); s.castShadow=false; s.receiveShadow=false; scene.add(s); fireworkPool.push(s); } }
-  function triggerFireworks(duration=4500){ if(fireworksActive) return; fireworksActive = true; const started = performance.now(); ensureFireworkMeshes(200);
+  function triggerFireworks(duration=4500){
+    if(fireworksActive) return;
+    fireworksActive = true;
+    const started = performance.now();
+    ensureFireworkMeshes(200);
     const interval = setInterval(()=>{
       const cx = player.position.x + (Math.random()-0.5)*60;
       const cz = player.position.z + (Math.random()-0.5)*60;
@@ -579,6 +631,39 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       if(aIn) aIn.value = qa[idx] ? qa[idx].answer : '';
     }); }
 
+  // ---------- Ending cinematic state & helpers ----------
+  let cinematicActive = false;
+  let cinematicStart = 0;
+  let cinematicDuration = 9000;   // ms
+  let cinematicRotations = 1.2;   // how many rotations the camera makes
+  const cinematicLockInput = true; // whether to block player movement during cinematic
+
+  function playEndingCinematic(){
+    if(cinematicActive) return;
+    cinematicActive = true;
+    cinematicStart = performance.now();
+    // longer fireworks during orbit
+    try{ triggerFireworks(cinematicDuration + 1200); }catch(e){ console.warn('fireworks failed', e); }
+    // lock input by clearing keys (your movement respects cinematicActive in mainLoop)
+    if(cinematicLockInput){
+      for(const k in keys) keys[k] = false;
+    }
+    // hide overlay until the very end (we'll reveal it from showEndingMessage)
+    if(endingOverlay) { endingOverlay.classList.remove('show'); endingOverlay.setAttribute('aria-hidden','true'); }
+  }
+
+  function showEndingMessage(){
+    if(!endingOverlay) return;
+    endingOverlay.setAttribute('aria-hidden','false');
+    endingOverlay.classList.add('show');
+    // allow click to dismiss and return control
+    endingOverlay.onclick = () => {
+      endingOverlay.classList.remove('show');
+      endingOverlay.setAttribute('aria-hidden','true');
+      endingOverlay.onclick = null;
+    };
+  }
+
   // top-level save button will copy textarea contents into letters[] and persist (admin-only)
   saveBtn.onclick = ()=>{ if(!isAdmin){ toast('Admin only'); return; } const cards = chestArea.querySelectorAll('.chest-card'); cards.forEach((card) => {
       const idx = Number(card.querySelector('textarea').dataset.index);
@@ -588,6 +673,16 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     }); saveState(); refreshUI(); toast('Saved all letters & Q/A'); };
 
   resetBtn.onclick = ()=>{ if(!confirm('Reset progress?')) return; foundCount = 0; nextChest = 1; chests.forEach(c=>{ c.collected = false; c.opened = false; try{ if(c.group && c.group.children[1]) c.group.children[1].rotation.x = 0; }catch(_){} }); saveState(); refreshUI(); toast('Progress reset'); };
+  // new: user-facing reset button (local reset) — available to all players
+  function localResetProgress(){
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    foundCount = 0;
+    nextChest = 1;
+    chests.forEach(c=>{ c.collected = false; c.opened = false; try{ if(c.group && c.group.children[1]) c.group.children[1].rotation.x = 0; }catch(_){} });
+    refreshUI();
+  }
+  resetUserBtn.onclick = ()=>{ if(!confirm('Reset your local progress? This will clear progress stored in your browser only.')) return; localResetProgress(); toast('Your progress has been reset'); };
+
   regenBtn.onclick = ()=>{ if(!confirm('Regenerate world?')) return; chests.forEach(c=>{ try{ scene.remove(c.group); }catch(_){} }); chests=[]; placeWorld(); foundCount = 0; nextChest = 1; if(!qa || qa.length !== 20) qa = Array.from({length:20}, (_,i)=>({ question: `What is ${i+2} + ${i+1}?`, answer: String((i+2)+(i+1)) })); createChestTextareas(); refreshUI(); saveState(); toast('World regenerated'); };
   copyHTML.onclick = async ()=>{ try{ await navigator.clipboard.writeText(document.documentElement.outerHTML); toast('HTML copied'); }catch(e){ toast('copy failed'); } };
 
@@ -616,7 +711,12 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     const qobj = qa[nearest.id-1] || { question: `Answer this to open chest ${nearest.id}`, answer: '' };
     askQuestion(nearest.id, qobj.question, qobj.answer, (ok) => {
       if(ok){
-        nearest.collected=true; nearest.group.children[1].rotation.x=-0.9; foundCount++; nextChest = Math.min(20, nextChest+1); spawnParticlesAt(nearest.x, nearest.z, 24); const text = letters[nearest.id-1] || ''; showLetter(nearest.id, text); saveState(); refreshUI(); if(foundCount===20) toast('All chests collected — beautiful!'); 
+        nearest.collected=true; nearest.group.children[1].rotation.x=-0.9; foundCount++; nextChest = Math.min(20, nextChest+1); spawnParticlesAt(nearest.x, nearest.z, 24); const text = letters[nearest.id-1] || ''; showLetter(nearest.id, text); saveState(); refreshUI(); 
+        if(foundCount === 20){
+          // trigger cinematic now
+          playEndingCinematic();
+          toast('All chests collected — beautiful!');
+        }
       } else {
         toast('Incorrect — try again');
       }
@@ -707,6 +807,7 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       cleanup();
       overlay.remove();
       if(foundCount === 20){
+        // show fireworks if last
         triggerFireworks(5000);
       }
     }
@@ -812,10 +913,12 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0,1,0)).normalize();
 
       let moveDir = new THREE.Vector3(0,0,0);
-      if(keys['w'] || keys['arrowup']) moveDir.add(camForward);
-      if(keys['s'] || keys['arrowdown']) moveDir.sub(camForward);
-      if(keys['a'] || keys['arrowleft']) moveDir.sub(camRight);
-      if(keys['d'] || keys['arrowright']) moveDir.add(camRight);
+      if(!cinematicActive){
+        if(keys['w'] || keys['arrowup']) moveDir.add(camForward);
+        if(keys['s'] || keys['arrowdown']) moveDir.sub(camForward);
+        if(keys['a'] || keys['arrowleft']) moveDir.sub(camRight);
+        if(keys['d'] || keys['arrowright']) moveDir.add(camRight);
+      }
       const isMoving = moveDir.lengthSq() > 0;
 
       if(isMoving){ moveDir.normalize(); player.position.addScaledVector(moveDir, MOVE_SPEED * dt); const targetYaw = Math.atan2(moveDir.x, moveDir.z); const currentYaw = player.rotation.y || 0; let diff = targetYaw - currentYaw; diff = (diff + Math.PI) % (Math.PI*2) - Math.PI; const ROT_SPEED = 12; player.rotation.y = currentYaw + diff * Math.min(1, ROT_SPEED * dt); }
@@ -830,17 +933,7 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
 
       if(mixer){ mixer.update(dt); const idleName = player.userData._animIdle; const moveName = player.userData._animMove; if(idleName && moveName && actions[idleName] && actions[moveName]){ const idle = actions[idleName]; const move = actions[moveName]; const targetMoveWeight = isMoving ? 1 : 0; idle.setEffectiveWeight(THREE.MathUtils.lerp(idle.getEffectiveWeight(), 1 - targetMoveWeight, 0.12)); move.setEffectiveWeight(THREE.MathUtils.lerp(move.getEffectiveWeight(), targetMoveWeight, 0.12)); } }
 
-      // smoothed camera follow (position + target)
-      tmpVec3.set(0, 220, cameraDistanceDefault);
-      camWorldOffset.copy(tmpVec3).applyQuaternion(camQuat);
-      desiredCamPos.copy(player.position).add(camWorldOffset);
-      camera.position.lerp(desiredCamPos, CAMERA_POS_LERP);
-
-      // smooth lookAt target at player head height
-      tmpVec3.set(player.position.x, player.position.y + 20, player.position.z);
-      cameraTarget.lerp(tmpVec3, CAMERA_TARGET_LERP);
-      camera.lookAt(cameraTarget);
-
+      // particles update
       ensureParticleMeshes(particles.length);
       for(let i=0;i<particlePool.length;i++){ const m = particlePool[i]; if(i < particles.length){ const p = particles[i]; m.visible = true; m.position.copy(p.pos); m.material.color.setHex(p.color); m.scale.setScalar(1 + (1 - Math.max(0, p.life)) * 1.2); } else m.visible = false; }
       for(let i=particles.length-1;i>=0;i--){ const p = particles[i]; p.life -= dt; p.vel.y -= 600*dt; p.pos.addScaledVector(p.vel, dt); if(p.life <= 0) particles.splice(i,1); }
@@ -850,6 +943,34 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       for(let i=heartParticles.length-1;i>=0;i--){ const p = heartParticles[i]; p.life -= dt; p.pos.addScaledVector(p.vel, dt); p.vel.x *= (1 - 0.01); p.vel.z *= (1 - 0.01); if(p.life <= 0) heartParticles.splice(i,1); }
 
       chests.forEach(c => { if(c.collected) c.group.children[1].rotation.x = THREE.MathUtils.lerp(c.group.children[1].rotation.x, -0.95, 0.12); });
+
+      // cinematic-aware camera follow
+      if(cinematicActive){
+        const t = (performance.now() - cinematicStart) / cinematicDuration;
+        const clamped = Math.min(1, Math.max(0, t));
+        const startAngle = cameraYaw || 0;
+        const angle = startAngle + (clamped * cinematicRotations * Math.PI * 2);
+        const pitch = -0.25 + (0.08 * Math.sin(clamped * Math.PI));
+        const radius = cameraDistanceDefault * (1 - 0.06 * Math.sin(clamped * Math.PI));
+        const camQuatC = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, angle, 0, 'YXZ'));
+        tmpVec3.set(0, 220, radius);
+        camWorldOffset.copy(tmpVec3).applyQuaternion(camQuatC);
+        camera.position.copy(player.position).add(camWorldOffset);
+        tmpVec3.set(player.position.x, player.position.y + 20 + (40 * Math.sin(clamped * Math.PI)), player.position.z);
+        camera.lookAt(tmpVec3);
+        if(clamped >= 1){
+          cinematicActive = false;
+          showEndingMessage();
+        }
+      } else {
+        tmpVec3.set(0, 220, cameraDistanceDefault);
+        camWorldOffset.copy(tmpVec3).applyQuaternion(camQuat);
+        desiredCamPos.copy(player.position).add(camWorldOffset);
+        camera.position.lerp(desiredCamPos, CAMERA_POS_LERP);
+        tmpVec3.set(player.position.x, player.position.y + 20, player.position.z);
+        cameraTarget.lerp(tmpVec3, CAMERA_TARGET_LERP);
+        camera.lookAt(cameraTarget);
+      }
 
       renderer.render(scene, camera);
       if(isMoving) walkTimer += dt * 8; else walkTimer += dt * 1;
@@ -926,12 +1047,16 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       readOnlyNote.style.display='none';
       saveBtn.style.display='inline-block';
       if(side) side.style.display = 'block';
+      // hide the user reset button for admins (admins already have full controls)
+      if(resetUserBtn) resetUserBtn.style.display = 'none';
     } else {
       adminBadge.style.display='none';
       readOnlyNote.style.display='block';
       saveBtn.style.display='none';
       // hide entire sidebar for non-admins
       if(side) side.style.display = 'none';
+      // non-admins keep the floating reset button visible (already in HUD)
+      if(resetUserBtn) resetUserBtn.style.display = 'inline-block';
     }
   })();
 
