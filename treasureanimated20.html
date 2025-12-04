@@ -960,23 +960,24 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   // --- Replace your initial setPixelRatio + resizeRenderer with this improved version ---
   function resizeRenderer(){
     try{
+      // Prefer the #left container if present, otherwise fall back to body
       const left = document.getElementById('left') || document.body;
-      const leftRect = left.getBoundingClientRect();
-      const w = Math.max(64, Math.floor(leftRect.width));
-      const h = Math.max(64, Math.floor(window.innerHeight));
+      const rect = left.getBoundingClientRect();
+      // fallback to window inner size if rect is invalid (sometimes happens on load/iframe)
+      let w = Math.max(64, Math.floor(rect.width) || window.innerWidth);
+      let h = Math.max(64, Math.floor(window.innerHeight));
 
-      // Allow high DPI but clamp to avoid extreme cost (adjust if you want sharper)
+      // Use actual devicePixelRatio (no aggressive clamping). You can clamp if you want to limit GPU cost.
+      const DPR = window.devicePixelRatio || 1;
+      // Optionally clamp DPR to avoid super-high render cost on very high DPI displays:
       const maxDPR = 2.5;
-      const dpr = Math.min(window.devicePixelRatio || 1, maxDPR);
+      const dpr = Math.min(DPR, maxDPR);
 
+      // Set pixel ratio first, then set size. Use updateStyle = true so three updates canvas style automatically.
       renderer.setPixelRatio(dpr);
-      // set drawing buffer size without modifying CSS (we'll explicitly set CSS to match)
-      renderer.setSize(w, h, /*updateStyle=*/ false);
+      renderer.setSize(w, h, /*updateStyle=*/ true);
 
-      // ensure canvas covers the target area in CSS pixels
-      renderer.domElement.style.width = `${w}px`;
-      renderer.domElement.style.height = `${h}px`;
-
+      // Ensure camera aspect is correct and projection matrix updated
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }catch(e){
