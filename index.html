@@ -294,7 +294,7 @@
   <div id="birthdayPopup" class="birthday-overlay" aria-hidden="false" role="dialog">
     <div class="birthday-box" role="document">
       <div class="birthday-text" id="birthdayText">
-HAAAAAAAAAAPPPPPPPPPPPPPPPPPPYYYYYYYYYYYYYYYY BBBBBBBBIIIIIIIIIIIIIRRRRRRRRRRRRRRRRRRRRRTTTTTTTTTTTTHHHHHHHHHDDDDDDDDDDDDDDAAAAAAAAAAAAYYYYYYYYYYYY DOOOOOOOBBBIIIIIIIIIII!!!!!!
+HAAAAAAAAAAPPPPPPPPPPPPPPPPPPYYYYYYYYYYYYYYYY BBBBBBBBIIIIIIIIIIIIIRRRRRRRRRRRRRRRRRRRRRTTTTTTTTTTTTHHHHHHHHHDDDDDDDDDDDDDDAAAAAAAAAAAAYYYYYYYYYYYY DOOOOOOOBBBIIIIIIIIIII!!!!!! 
 Now, there are 20 chests in this small game I made, you cannot open any chest at random, all of them are numbered, BUTT(yours) THEY ARE PASSWORD PROTECTED, if the question has options jaise A or B, just write the letter A or B as the answer, not the entire sentence ok? Use ARROW KEYS to move(aur iss para ke beech koi number aara ho toh just move idhr udhr ok? surri) (To open any chest, press Tab) I LAVE YYOOUUU!! ( p.s. its not alot pr just know I made it with love.)
       </div>
       <div class="birthday-sub">(Click below to close — message shown on load)</div>
@@ -391,8 +391,7 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   const endingOverlay = document.getElementById('endingOverlay');
 
   // renderer & scene
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false, preserveDrawingBuffer: false });
   renderer.shadowMap.enabled = true;
 
   const scene = new THREE.Scene();
@@ -400,6 +399,12 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 5000);
   camera.position.set(0, 320, 700);
+
+  // --- Color / tone improvements (makes colors punchier) ---
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; // filmic color response
+  renderer.toneMappingExposure = 1.35;                // raise for more punch (1.0 - 1.6 typical)
+  renderer.physicallyCorrectLights = true;
 
   // smoothed camera follow helpers
   const cameraTarget = new THREE.Vector3();
@@ -431,21 +436,31 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
   let cameraDistanceDefault = 420;
   canvasEl.addEventListener('wheel', (e) => { cameraDistanceDefault = Math.max(60, Math.min(900, cameraDistanceDefault + e.deltaY * 0.1)); e.preventDefault(); }, { passive:false });
 
-  // lights (tweaked for white ground)
-  const hemi = new THREE.HemisphereLight(0xffffee, 0x888888, 1.1); scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(200,400,100); dir.castShadow = true; scene.add(dir);
+  // lights (warmer/brighter to avoid dull look)
+  const hemi = new THREE.HemisphereLight(0xfff7e6 /*sky warm*/, 0x7fb3c9 /*ground cool*/, 1.4);
+  scene.add(hemi);
 
-  // ground (now green) — world made smaller
+  const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+  dir.position.set(200,400,100);
+  dir.castShadow = true;
+  dir.shadow.radius = 2;
+  dir.shadow.bias = -0.0005;
+  scene.add(dir);
+
+  // soft ambient to keep shadows from going dead black
+  const amb = new THREE.AmbientLight(0xffffff, 0.12);
+  scene.add(amb);
+
+  // ground (natural grass green)
   const WORLD_W = 2000, WORLD_H = 1600;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(WORLD_W, WORLD_H, 8,8),
-    new THREE.MeshStandardMaterial({ color:0x66bb6a, roughness:0.95, metalness:0 })
+    new THREE.MeshStandardMaterial({ color:0x27ae60, roughness:0.85, metalness:0.02 })
   );
   ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
 
   // player & placeholder (resized)
   const player = new THREE.Group(); player.position.set(0,40,0); player.scale.set(5,5,5); scene.add(player);
-  // initialise camera target roughly at player head height
   cameraTarget.copy(player.position).add(new THREE.Vector3(0, 20, 0));
   let placeholder = null;
   (function makePlaceholder(){
@@ -459,15 +474,18 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     player.add(placeholder);
   })();
 
-  // SAKURA TREES - lovey dovey additions
+  // SAKURA TREES - trunk brown, leaves pink
   const sakuraGroup = new THREE.Group(); scene.add(sakuraGroup);
   function makeSakuraTree(){
     const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2,3,28,8), new THREE.MeshStandardMaterial({ color:0x5a3b2b }));
+    // trunk — brown (natural)
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2,3,28,8), new THREE.MeshStandardMaterial({ color:0x8b5a2b }));
     trunk.position.y = 14; g.add(trunk);
+
     const canopy = new THREE.Group();
     for(let i=0;i<18;i++){
-      const s = new THREE.Mesh(new THREE.SphereGeometry(6.5,6,6), new THREE.MeshStandardMaterial({ color: 0xffb6c1, flatShading:true }));
+      // leaves/flowers — pink
+      const s = new THREE.Mesh(new THREE.SphereGeometry(6.5,6,6), new THREE.MeshStandardMaterial({ color: 0xff73a0, flatShading:true }));
       const ang = Math.random()*Math.PI*2; const r = 6 + Math.random()*18; const y = 8 + Math.random()*22;
       s.position.set(Math.cos(ang)*r, y, Math.sin(ang)*r);
       s.scale.setScalar(0.7 + Math.random()*1.2);
@@ -489,17 +507,48 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
       t.scale.setScalar(1.0 + Math.random()*0.9);
       sakuraGroup.add(t);
     }
+    // ensure all trunks/leaves locked to intended colors (post-adjust)
+    sakuraGroup.traverse(n => {
+      if(n.isMesh && n.material){
+        if(n.geometry && n.geometry.type === 'CylinderGeometry'){
+          // trunk(s)
+          n.material.color.setHex(0x8b5a2b);
+          n.material.needsUpdate = true;
+        } else {
+          // canopy pieces (pink)
+          n.material.color.setHex(0xff73a0);
+          n.material.emissive = new THREE.Color(0x330018);
+          n.material.emissiveIntensity = 0.06;
+          n.material.needsUpdate = true;
+        }
+      }
+    });
   }
   placeSakuraTrees(48);
 
   // chests (open-world placement, no barriers)
   let chests = [];
+
+  // label creation accounts for DPR for crisp text
   function makeLabelPlane(txt){
-    const c = document.createElement('canvas'); c.width=256; c.height=256; const ctx=c.getContext('2d');
-    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,c.width,c.height);
-    ctx.fillStyle='#06111a'; ctx.font='bold 120px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(txt, c.width/2, c.height/2);
-    const tex = new THREE.CanvasTexture(c); return new THREE.Mesh(new THREE.PlaneGeometry(16,16), new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const baseSize = 256;
+    const c = document.createElement('canvas');
+    c.width = baseSize * DPR; c.height = baseSize * DPR;
+    const ctx = c.getContext('2d');
+    ctx.scale(DPR, DPR);
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,baseSize, baseSize);
+    ctx.fillStyle='#06111a';
+    ctx.font='bold 120px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(txt, (baseSize / 2), (baseSize / 2));
+    const tex = new THREE.CanvasTexture(c);
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return new THREE.Mesh(new THREE.PlaneGeometry(16,16), new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
   }
+
   function placeWorld(){
     chests.forEach(c=>scene.remove(c.group)); chests=[];
     const margin = 200;
@@ -512,8 +561,10 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
         let ok=true; for(const c of chests) if(Math.hypot(c.x-x,c.z-z) < 180){ ok=false; break; }
         if(!ok){ tries++; continue; }
         const g = new THREE.Group();
-        const base = new THREE.Mesh(new THREE.BoxGeometry(18,12,14), new THREE.MeshStandardMaterial({ color:0x6b3b2a })); base.position.y=6; g.add(base);
-        const lid = new THREE.Mesh(new THREE.BoxGeometry(20,8,16), new THREE.MeshStandardMaterial({ color:0xf59e0b })); lid.position.y=14; g.add(lid);
+        const baseMat = new THREE.MeshStandardMaterial({ color:0x6b3b2a, roughness:0.9, metalness:0.02 });
+        const lidMat = new THREE.MeshStandardMaterial({ color:0xf59e0b, roughness:0.35, metalness:0.45 }); // shinier gold-like lid
+        const base = new THREE.Mesh(new THREE.BoxGeometry(18,12,14), baseMat); base.position.y=6; g.add(base);
+        const lid = new THREE.Mesh(new THREE.BoxGeometry(20,8,16), lidMat); lid.position.y=14; g.add(lid);
         const lab = makeLabelPlane(String(i)); lab.position.set(0,8,8.9); g.add(lab);
         g.position.set(x,0,z); scene.add(g);
         chests.push({ id:i, group:g, lid, label:lab, opened:false, collected:false, x, z, question:'What is 2 + 2?', answer:'4' });
@@ -906,9 +957,34 @@ Now, there are 20 chests in this small game I made, you cannot open any chest at
     } else slog('Model has no animations.');
   }
 
-  // resize
-  function resizeRenderer(){ const leftRect = document.getElementById('left').getBoundingClientRect(); const w = Math.max(64, Math.floor(leftRect.width)); const h = Math.max(64, Math.floor(window.innerHeight)); renderer.setSize(w,h); camera.aspect = w/h; camera.updateProjectionMatrix(); }
-  window.addEventListener('resize', resizeRenderer); requestAnimationFrame(resizeRenderer);
+  // --- Replace your initial setPixelRatio + resizeRenderer with this improved version ---
+  function resizeRenderer(){
+    try{
+      const left = document.getElementById('left') || document.body;
+      const leftRect = left.getBoundingClientRect();
+      const w = Math.max(64, Math.floor(leftRect.width));
+      const h = Math.max(64, Math.floor(window.innerHeight));
+
+      // Allow high DPI but clamp to avoid extreme cost (adjust if you want sharper)
+      const maxDPR = 2.5;
+      const dpr = Math.min(window.devicePixelRatio || 1, maxDPR);
+
+      renderer.setPixelRatio(dpr);
+      // set drawing buffer size without modifying CSS (we'll explicitly set CSS to match)
+      renderer.setSize(w, h, /*updateStyle=*/ false);
+
+      // ensure canvas covers the target area in CSS pixels
+      renderer.domElement.style.width = `${w}px`;
+      renderer.domElement.style.height = `${h}px`;
+
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }catch(e){
+      slog('resizeRenderer error: ' + e);
+    }
+  }
+  window.addEventListener('resize', resizeRenderer, { passive: true });
+  resizeRenderer();
 
   // MAIN LOOP
   let last = performance.now();
